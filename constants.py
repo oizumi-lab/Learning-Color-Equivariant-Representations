@@ -1,6 +1,9 @@
 from pathlib import Path
 
-DEFAULT_PARAMS_DIR = Path("./default_params.json")
-RESULTS_PATH = Path("./results")
-EXPERIMENTS_PATH = Path("./experiments")
-LOG_DIR = Path("./logs")
+# Get the directory where this constants.py file is located
+BASE_DIR = Path(__file__).parent
+
+DEFAULT_PARAMS_DIR = BASE_DIR / "default_params.json"
+RESULTS_PATH = BASE_DIR / "results"
+EXPERIMENTS_PATH = BASE_DIR / "experiments"
+LOG_DIR = BASE_DIR / "logs"

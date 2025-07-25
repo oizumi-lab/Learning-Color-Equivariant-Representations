@@ -15,6 +15,7 @@ from datasets.dataloaders import parse_dataloader
 def run(exp_class, exp_name):
 
     # get params
+    print(c.EXPERIMENTS_PATH / (exp_class+".json"))
     with open(c.EXPERIMENTS_PATH / (exp_class+".json")) as f:
         exp_params = json.load(f)
     params_imported = exp_params[exp_name]
