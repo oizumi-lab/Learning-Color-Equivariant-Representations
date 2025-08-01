@@ -57,15 +57,15 @@ def run(exp_class, exp_name):
         raise ValueError("Either n_epochs or n_iters must be specified in the experiment parameters.")
     if "n_epochs" in params.keys() and "n_iters" in params.keys():
         raise ValueError("Only one of n_epochs or n_iters can be specified in the experiment parameters.")
-
-    # create a checkpoint callback
+    
+    # setup a checkpoint callback
     checkpoint_callback = ModelCheckpoint(
         dirpath=str(logger.log_dir + "/checkpoints"),
-        filename="epoch={epoch:03d}-step={step}.ckpt",
         save_last=True,
         save_top_k=0,
     )
     
+    # setup a trainer
     if "n_epochs" in params.keys():
         trainer = L.Trainer(
             #max_epochs=params["n_epochs"],
@@ -75,16 +75,26 @@ def run(exp_class, exp_name):
             callbacks=[checkpoint_callback],
         )
     else :
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=str(logger.log_dir + "/checkpoints"),
+            filename="epoch={epoch:03d}-step={global_step}.ckpt",
+            every_n_epochs=1,
+            save_top_k=1,
+            monitor="global_step",
+            mode="max",
+        )
         trainer = L.Trainer(
             max_steps=params["n_iters"],
             devices='auto',
             logger=logger,
             callbacks=[checkpoint_callback],
         )
+    # train
     trainer.fit(
         t,
         train_dataloaders=train_loader,
     )
+    # test
     trainer.test(
         t,
         dataloaders=test_loader,
