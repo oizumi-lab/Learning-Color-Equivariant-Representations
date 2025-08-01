@@ -136,7 +136,7 @@ def get_shapes3d(n_groups_hue = 1, n_groups_saturation=1, batch_size=128, ours=T
     testloader_3 = torch.utils.data.DataLoader(testset_3, batch_size=batch_size, shuffle=False, num_workers=24)
     return dataloaders(train=trainloader, val=testloader, test=[testloader, testloader_2, testloader_3])
 
-def get_cifar(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
+def get_cifar(n_groups_hue=1, n_groups_luminance=1, batch_size=128, ours=True):
     if ours:
         transform_train = transforms.Compose([
             transforms.ColorJitter(brightness=0, contrast=0, saturation=0, hue=0.25),
@@ -171,7 +171,7 @@ def get_cifar(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=Tru
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=1)
     return dataloaders(train=trainloader, val=testloader, test=testloader)
 
-def get_cifar100(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
+def get_cifar100(n_groups_hue=1, n_groups_luminance=1, batch_size=128, ours=True):
     if ours:
         transform_train = transforms.Compose([
             transforms.ColorJitter(brightness=0, contrast=0, saturation=0, hue=0.25),
