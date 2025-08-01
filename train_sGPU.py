@@ -68,8 +68,7 @@ def run(exp_class, exp_name):
     # setup a trainer
     if "n_epochs" in params.keys():
         trainer = L.Trainer(
-            #max_epochs=params["n_epochs"],
-            max_epochs=3,
+            max_epochs=params["n_epochs"],
             devices='auto',
             logger=logger,
             callbacks=[checkpoint_callback],
