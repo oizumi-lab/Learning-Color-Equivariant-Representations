@@ -17,19 +17,18 @@ class GroupConvHS(nn.Module):
     """
 
     def __init__(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=1,
-        padding=0,
-        n_groups_hue=1,
-        n_groups_saturation=1,
-        bias = False,
-        rescale_luminance = True,
+            self,
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=1,
+            padding=0,
+            n_groups_hue=1,
+            n_groups_saturation=1,
+            bias = False,
+            rescale_luminance = True,
         ) -> None:
         super().__init__()
-
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -38,31 +37,34 @@ class GroupConvHS(nn.Module):
         self.padding = padding
         if type(self.kernel_size) != int:
             self.kernel_size = self.kernel_size[0]  # we only permit square kernels
-
         self.n_groups_hue = n_groups_hue
         self.n_groups_saturation = n_groups_saturation
-
         self.bias = bias
-
         self.rescale_luminance = rescale_luminance
-
         self.conv_weight = nn.Parameter(torch.Tensor(
             self.out_channels,
             self.n_groups_hue * self.n_groups_saturation * self.in_channels,
             self.kernel_size,
             self.kernel_size
         ))
-
         # Initialize the weights
         nn.init.kaiming_uniform_(self.conv_weight, a=math.sqrt(5))
-
         self.construct_masks()
-
         self.register_buffer("group_conv_weight", self.construct_group_conv_weight())
 
+
     def construct_masks(self):
-        mask = torch.zeros((self.n_groups_hue, self.n_groups_saturation, self.n_groups_hue, self.n_groups_saturation, 2), dtype=torch.int8)
-        sfs = torch.ones((self.n_groups_hue, self.n_groups_saturation), dtype=torch.float32)
+        mask = torch.zeros(
+            self.n_groups_hue, 
+            self.n_groups_saturation, 
+            self.n_groups_hue, 
+            self.n_groups_saturation, 
+            2, 
+            dtype=torch.int8
+        )
+        sfs = torch.ones(
+            self.n_groups_hue, self.n_groups_saturation, dtype=torch.float32
+        )
         group_elems_hue = torch.arange(self.n_groups_hue)
         group_elems_luminance = torch.arange(self.n_groups_saturation)
         H, L = torch.meshgrid(group_elems_hue, group_elems_luminance)
@@ -80,11 +82,29 @@ class GroupConvHS(nn.Module):
         self.mask = mask
         self.sfs = sfs
 
+
     def construct_group_conv_weight(self):
-        conv_weight = torch.zeros((self.n_groups_hue, self.n_groups_saturation, self.out_channels, self.n_groups_hue, self.n_groups_saturation, self.in_channels, self.kernel_size, self.kernel_size), dtype=self.conv_weight.dtype)
+        conv_weight = torch.zeros(
+            self.n_groups_hue, 
+            self.n_groups_saturation, 
+            self.out_channels, 
+            self.n_groups_hue, 
+            self.n_groups_saturation, 
+            self.in_channels, 
+            self.kernel_size, 
+            self.kernel_size,
+            dtype=self.conv_weight.dtype
+        )
         # put on same device as x
         conv_weight = conv_weight.to(self.conv_weight.device)
-        cw = self.conv_weight.view(self.out_channels, self.n_groups_hue, self.n_groups_saturation, self.in_channels, self.kernel_size, self.kernel_size)
+        cw = self.conv_weight.view(
+            self.out_channels, 
+            self.n_groups_hue, 
+            self.n_groups_saturation, 
+            self.in_channels, 
+            self.kernel_size, 
+            self.kernel_size
+        )
         for i in range(self.n_groups_hue):
             for j in range(self.n_groups_saturation):
                 for k in range(self.n_groups_hue):
@@ -132,31 +152,52 @@ class GroupConvHS(nn.Module):
         out_tensors = out_tensors.view(-1, self.n_groups_hue * self.n_groups_saturation * self.out_channels, out_tensors.shape[-2], out_tensors.shape[-1])
         return out_tensors
     
+
     def forward_2(self, x):
-        conv_weight = torch.zeros((self.n_groups_hue, self.n_groups_saturation, self.out_channels, self.n_groups_hue, self.n_groups_saturation, self.in_channels, self.kernel_size, self.kernel_size), dtype=self.conv_weight.dtype)
+        conv_weight = torch.zeros(
+            self.n_groups_hue, 
+            self.n_groups_saturation, 
+            self.out_channels, 
+            self.n_groups_hue, 
+            self.n_groups_saturation, 
+            self.in_channels, 
+            self.kernel_size, 
+            self.kernel_size,
+            dtype=self.conv_weight.dtype
+        )
         # put on same device as x
         conv_weight = conv_weight.to(x.device)
-        cw = self.conv_weight.view(self.out_channels, self.n_groups_hue, self.n_groups_saturation, self.in_channels, self.kernel_size, self.kernel_size)
+        cw = self.conv_weight.view(
+            self.out_channels, 
+            self.n_groups_hue, 
+            self.n_groups_saturation, 
+            self.in_channels, 
+            self.kernel_size, self.kernel_size
+        )
         for i in range(self.n_groups_hue):
             for j in range(self.n_groups_saturation):
-                roll_luminance = j - self.n_groups_saturation // 2
-                conv_weight[i, j, :, :, :, :, :, :] = cw.roll(i, dims=1).roll(roll_luminance, dims=2)
-                conv_weight[i, j, :, :, :, :, :, :] /= (self.n_groups_saturation - abs(roll_luminance)) / self.n_groups_saturation
-                if roll_luminance > 0:
-                    conv_weight[i, j, :, :, :roll_luminance, :, :, :] *= 0
-                elif roll_luminance < 0:
-                    conv_weight[i, j, :, :, roll_luminance:, :, :, :] *= 0
-
+                shift = j - self.n_groups_saturation // 2
+                conv_weight[i, j, :, :, :, :, :, :] = cw.roll(i, dims=1).roll(shift, dims=2)
+                scale_factor = (self.n_groups_saturation - abs(shift)) / self.n_groups_saturation
+                conv_weight[i, j, :, :, :, :, :, :] /= scale_factor
+                if shift > 0:
+                    conv_weight[i, j, :, :, :shift, :, :, :] *= 0
+                elif shift < 0:
+                    conv_weight[i, j, :, :, shift:, :, :, :] *= 0
                 # the mask has four dimensions and is boolean
                     # we want to assign the values of conv_weight[a, b, :, c, d, :, :, :] to cw[:, i, j, :,:,:]
                     # where mask[a, b, c, d] is True
                 # we can do this by reshaping conv_weight to have shape (n_groups * n_groups_luminance, out_channels, n_groups * n_groups_luminance, in_channels, kernel_size, kernel_size)
                 # and then reshaping cw to have shape (out_channels, n_groups * n_groups_luminance, in_channels, kernel_size, kernel_size)
-                    
-
-        conv_weight = conv_weight.view(self.n_groups_hue * self.n_groups_saturation * self.out_channels, self.n_groups_hue * self.n_groups_saturation * self.in_channels, self.kernel_size, self.kernel_size)
+        conv_weight = conv_weight.view(
+            self.n_groups_hue * self.n_groups_saturation * self.out_channels, 
+            self.n_groups_hue * self.n_groups_saturation * self.in_channels, 
+            self.kernel_size, 
+            self.kernel_size
+        )
         out_tensors = F.conv2d(x, conv_weight, stride=self.stride, padding=self.padding)
         return out_tensors
+
 
     def forward_3(self,x):
 
@@ -174,8 +215,8 @@ class GroupConvHS(nn.Module):
         # out_tensors = self.forward_1(x)
         out_tensors = self.forward_2(x)
         # out_tensors = self.forward_3(x)
-
         return out_tensors
+
 
 class GroupPool(nn.Module):
     def __init__(
@@ -191,14 +232,17 @@ class GroupPool(nn.Module):
 
     def forward(self, x):
         x = x.view(
-            -1, self.n_groups, x.shape[1] // self.n_groups, x.shape[2], x.shape[3]
+            -1, 
+            self.n_groups, 
+            x.shape[1] // self.n_groups, 
+            x.shape[2], 
+            x.shape[3]
         )
-
         # incoming tensor is of shape (batch_size, n_groups * channels, height, width)
         # outgoing tensor should be of shape (batch_size, channels, height, width)
         y = self.pool_operation(x)
-
         return y
+
 
 class GroupBatchNorm2d(nn.Module):
     def __init__(self, num_features, n_groups_hue=4, n_groups_saturation=1, momentum = 0.1):
@@ -216,13 +260,23 @@ class GroupBatchNorm2d(nn.Module):
                 f"Expected {self.n_groups_hue * self.n_groups_saturation * self.num_features} channels in tensor, but got {x.shape[1]} channels"
             )
         x = x.view(
-            -1, self.n_groups_hue, x.shape[-3] // (self.n_groups_hue * self.n_groups_saturation), x.shape[-2], x.shape[-1]
+            -1, 
+            self.n_groups_hue, 
+            x.shape[-3] // (self.n_groups_hue * self.n_groups_saturation), 
+            x.shape[-2], 
+            x.shape[-1]
         )
         x = x.permute(0, 2, 1, 3, 4)
         y = self.batch_norm(x)
         y = y.permute(0, 2, 1, 3, 4)
-        y = y.reshape(-1, (self.n_groups_hue * self.n_groups_saturation) * self.num_features, x.shape[-2], x.shape[-1])
+        y = y.reshape(
+            -1, 
+            self.n_groups_hue * self.n_groups_saturation * self.num_features,
+            x.shape[-2], 
+            x.shape[-1]
+        )
         return y
+
 
 if __name__=="__main__":
     # NB input tensor has shape (batch, groups_hue * groups_saturation * channels, w, h)
