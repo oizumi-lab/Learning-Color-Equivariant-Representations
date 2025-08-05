@@ -220,7 +220,11 @@ class GroupConvHS(nn.Module):
 
 class GroupPool(nn.Module):
     def __init__(
-        self, n_groups_total, pool_operation=lambda x: torch.max(x, dim=1)[0], verbose=False, name=None
+        self, 
+        n_groups_total, 
+        pool_operation=lambda x: torch.max(x, dim=1)[0], 
+        verbose=False, 
+        name=None
     ) -> None:
         super().__init__()
         self.verbose = verbose
@@ -231,13 +235,8 @@ class GroupPool(nn.Module):
         self.pool_operation = pool_operation
 
     def forward(self, x):
-        x = x.view(
-            -1, 
-            self.n_groups, 
-            x.shape[1] // self.n_groups, 
-            x.shape[2], 
-            x.shape[3]
-        )
+        N, _, H, W = x.shape
+        x = x.view(N, self.n_groups, -1, H, W)
         # incoming tensor is of shape (batch_size, n_groups * channels, height, width)
         # outgoing tensor should be of shape (batch_size, channels, height, width)
         y = self.pool_operation(x)
@@ -245,7 +244,13 @@ class GroupPool(nn.Module):
 
 
 class GroupBatchNorm2d(nn.Module):
-    def __init__(self, num_features, n_groups_hue=4, n_groups_saturation=1, momentum = 0.1):
+    def __init__(
+        self, 
+        num_features, 
+        n_groups_hue=4, 
+        n_groups_saturation=1, 
+        momentum=0.1
+    ):
         super().__init__()
         self.batch_norm = nn.BatchNorm3d(num_features, momentum=momentum)
         self.num_features = num_features
@@ -259,22 +264,12 @@ class GroupBatchNorm2d(nn.Module):
             raise ValueError(
                 f"Expected {self.n_groups_hue * self.n_groups_saturation * self.num_features} channels in tensor, but got {x.shape[1]} channels"
             )
-        x = x.view(
-            -1, 
-            self.n_groups_hue, 
-            x.shape[-3] // (self.n_groups_hue * self.n_groups_saturation), 
-            x.shape[-2], 
-            x.shape[-1]
-        )
-        x = x.permute(0, 2, 1, 3, 4)
+        N, _, H, W = x.shape
+        x = x.view(N, -1, self.num_features, H, W)
+        x = x.permute(0, 2, 1, 3, 4) # (N, num_features, n_groups, H, W)
         y = self.batch_norm(x)
         y = y.permute(0, 2, 1, 3, 4)
-        y = y.reshape(
-            -1, 
-            self.n_groups_hue * self.n_groups_saturation * self.num_features,
-            x.shape[-2], 
-            x.shape[-1]
-        )
+        y = y.reshape(N, -1, H, W)
         return y
 
 
