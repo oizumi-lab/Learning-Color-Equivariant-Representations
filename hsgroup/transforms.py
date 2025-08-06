@@ -62,12 +62,13 @@ class HueSeparation:
         x_transformed = []
         for i in range(self.n_groups):
             # hue rotation; hue range: [0, 255]
-            hue_idx = i // self.n_groups_saturation
-            rot_amount = hue_idx * 256 // self.n_groups
+            rot_amount = i * 256 // self.n_groups
             x = rotate(rot_amount)
             
             # append tensor
-            x = torch.tensor(np.array(x), dtype=torch.float32).permute(2, 0, 1) / 255
+            x = torch.tensor(
+                np.array(x), dtype=torch.float32
+            ).permute(2, 0, 1) / 255
             x_transformed.append(x)
             
         return torch.stack(x_transformed, dim=0) # (n_groups, 3, H, W)
