@@ -28,6 +28,31 @@ DATA_PATH_SHAPES3D = "./data/3dshapes.h5"
 DATA_PATH_SMALLNORB = "./data/smallnorb/"
 DATA_NAME_SMALLNORB_TEST = "test-00000-of-00001-b4af1727fb5b132e.parquet"
 DATA_NAME_SMALLNORB_TRAIN = "train-00000-of-00001-ba54590c34eb8af1.parquet"
+MEAN = {
+    "camelyon17": [0.5, 0.5, 0.5],
+    "shapes3d": [0.5, 0.5, 0.5],
+    "cifar": [0.4914, 0.4822, 0.4465],
+    "smallnorb": [0.5, 0.5, 0.5],
+    "imagenet": [0.485, 0.456, 0.406],
+    "caltech101": [0.4914, 0.4822, 0.4465],
+    "flowers": [0.4914, 0.4822, 0.4465],
+    "pets": [0.4914, 0.4822, 0.4465],
+    "cars": [0.4914, 0.4822, 0.4465],
+    "STL10": [0.4914, 0.4822, 0.4465]
+}
+STD = {
+    "camelyon17": [0.5, 0.5, 0.5],
+    "shapes3d": [0.5, 0.5, 0.5],
+    "cifar": [0.2023, 0.1994, 0.2010],
+    "smallnorb": [0.5, 0.5, 0.5],
+    "imagenet": [0.229, 0.224, 0.225],
+    "caltech101": [0.2023, 0.1994, 0.2010],
+    "flowers": [0.2023, 0.1994, 0.2010],
+    "pets": [0.2023, 0.1994, 0.2010],
+    "cars": [0.2023, 0.1994, 0.2010],
+    "STL10": [0.2023, 0.1994, 0.2010]
+}
+
 
 def get_camelyon17(n_groups_hue = 1, n_groups_luminance = 1, batch_size=64, ours=True):
     transform_train = transforms.Compose(
@@ -55,6 +80,7 @@ def get_camelyon17(n_groups_hue = 1, n_groups_luminance = 1, batch_size=64, ours
     val_loader = get_eval_loader("standard", val_set, batch_size=batch_size)
     eval_loader = get_eval_loader("standard", eval_set,batch_size=batch_size)
     return dataloaders(train=train_loader, val=val_loader, test=eval_loader)
+
 
 def get_shapes3d(n_groups_hue = 1, n_groups_saturation=1, batch_size=128, ours=True):
     train_test_split = 0.8
@@ -136,6 +162,7 @@ def get_shapes3d(n_groups_hue = 1, n_groups_saturation=1, batch_size=128, ours=T
     testloader_3 = torch.utils.data.DataLoader(testset_3, batch_size=batch_size, shuffle=False, num_workers=24)
     return dataloaders(train=trainloader, val=testloader, test=[testloader, testloader_2, testloader_3])
 
+
 def get_cifar(n_groups_hue=1, n_groups_luminance=1, batch_size=128, ours=True):
     if ours:
         transform_train = transforms.Compose([
@@ -170,6 +197,7 @@ def get_cifar(n_groups_hue=1, n_groups_luminance=1, batch_size=128, ours=True):
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=1)
     return dataloaders(train=trainloader, val=testloader, test=testloader)
+
 
 def get_cifar100(n_groups_hue=1, n_groups_luminance=1, batch_size=128, ours=True):
     if ours:
@@ -207,6 +235,7 @@ def get_cifar100(n_groups_hue=1, n_groups_luminance=1, batch_size=128, ours=True
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=24)
     return dataloaders(train=trainloader, val=testloader, test=testloader)
 
+
 def get_tinyimagenet(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
     if ours:
         transform_train = transforms.Compose([
@@ -236,6 +265,7 @@ def get_tinyimagenet(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, o
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=24)
 
     return dataloaders(train=trainloader, val=testloader, test=testloader)
+
 
 def get_smallnorb(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True, frac_space=1.0):
     train_split = True
@@ -308,6 +338,7 @@ def get_smallnorb(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours
 
     return dataloaders(train=trainloader, val=testloader, test=[testloader, testloader_lowlight, testloader_mid, testloader_highlight])
 
+
 def get_tinyimagenet(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
     if ours:
         transform_train = transforms.Compose([
@@ -337,6 +368,7 @@ def get_tinyimagenet(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, o
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=24)
 
     return dataloaders(train=trainloader, val=testloader, test=testloader)
+
 
 def get_tinyimagenet224(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
     if ours:
@@ -372,6 +404,7 @@ def get_tinyimagenet224(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128
 
     return dataloaders(train=trainloader, val=testloader, test=testloader)
 
+
 def get_caltech101(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
     if ours:
         transform_train = transforms.Compose([
@@ -396,6 +429,7 @@ def get_caltech101(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, our
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=24)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=24)
     return dataloaders(train=trainloader, val=testloader, test=testloader)
+
 
 def get_flowers(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
     if ours:
@@ -435,6 +469,7 @@ def get_flowers(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=T
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=24)
     return dataloaders(train=trainloader, val=testloader, test=testloader)
 
+
 def get_pets(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
     if ours:
         transform_train = transforms.Compose([
@@ -471,6 +506,7 @@ def get_pets(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=24)
     testloader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=24)
     return dataloaders(train=trainloader, val=testloader, test=testloader)
+
 
 def get_cars(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
     if ours:
@@ -509,6 +545,7 @@ def get_cars(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=24)
     return dataloaders(train=trainloader, val=testloader, test=testloader)
 
+
 def get_STL10(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=True):
     if ours:
         transform_train = transforms.Compose([
@@ -545,6 +582,7 @@ def get_STL10(n_groups_hue = 1, n_groups_luminance = 1, batch_size=128, ours=Tru
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=24)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=24)
     return dataloaders(train=trainloader, val=testloader, test=testloader)
+
 
 def get_camelyon17(n_groups_hue = 1, n_groups_luminance = 1, batch_size=64, ours=True, frac_space=1.0):
     if ours:
@@ -605,6 +643,7 @@ def get_camelyon17(n_groups_hue = 1, n_groups_luminance = 1, batch_size=64, ours
 
     return dataloaders(train=train_loader, val=val_loader, test=eval_loader)
 
+
 def parse_dataloader(name):
     if name == "shapes3d":
         return get_shapes3d
@@ -631,6 +670,7 @@ def parse_dataloader(name):
     else:
         raise ValueError("Invalid dataset name")
     
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     get_shapes3d(batch_size=4)
