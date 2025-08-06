@@ -83,7 +83,9 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, shapes = [64, 128, 256, 512], n_groups_hue=1, n_groups_saturation = 1, ours=True):
+    def __init__(
+        self, block, num_blocks, num_classes=10, shapes=[64, 128, 256, 512], n_groups_hue=1, n_groups_saturation=1, ours=True
+    ):
         super(ResNet, self).__init__()
         # assert not ours
         self.in_planes = shapes[0]
@@ -91,23 +93,35 @@ class ResNet(nn.Module):
 
         def groupconv(*args, **kwargs):
             if ours:
-                return hsgconv.GroupConvHS(n_groups_hue=n_groups_hue, n_groups_saturation=n_groups_saturation, *args, **kwargs)
+                return hsgconv.GroupConvHS(
+                    n_groups_hue=n_groups_hue, 
+                    n_groups_saturation=n_groups_saturation, 
+                    *args, 
+                    **kwargs
+                )
             else:
                 return CEConv2d(n_groups_hue, n_groups_hue, *args, **kwargs)
         conv = groupconv
+        
         def groupbn(*args, **kwargs):
             if ours:
-                return hsgconv.GroupBatchNorm2d(*args, **kwargs, n_groups_hue=n_groups_hue, n_groups_saturation=n_groups_saturation)
+                return hsgconv.GroupBatchNorm2d(
+                    *args, 
+                    **kwargs, 
+                    n_groups_hue=n_groups_hue,
+                    n_groups_saturation=n_groups_saturation
+                )
             else:
                 return nn.BatchNorm3d(*args, **kwargs)
-            
         bn = groupbn
+        
         shapes = [int(s/math.sqrt(n_groups_hue * n_groups_saturation)) for _, s in enumerate(shapes)]
-
-        # self.conv1 = conv(3, shapes[0], kernel_size=3,
-        #                        stride=1, padding=1, bias=False)
         if ours:
-            self.conv1 = hsgconv.GroupConvHS(3, shapes[0], kernel_size=3, stride=1, padding=1, bias=False, n_groups_hue=n_groups_hue, n_groups_saturation=n_groups_saturation)
+            self.conv1 = hsgconv.GroupConvHS(
+                3, shapes[0], kernel_size=3, stride=1, padding=1, bias=False, 
+                n_groups_hue=n_groups_hue, 
+                n_groups_saturation=n_groups_saturation
+            )
         else:
             self.conv1 = CEConv2d(1, n_groups_hue, 3, shapes[0], kernel_size=3, stride=1, bias=False)
         self.bn1 = bn(shapes[0])
@@ -116,18 +130,13 @@ class ResNet(nn.Module):
             for i, shape, num_block in zip(range(len(shapes)), shapes, num_blocks)
         ]
         self.layers = nn.Sequential(*self.layers)
-
         if ours:
             self.group_pool = hsgconv.GroupPool(n_groups_hue * n_groups_saturation)
         else:
             self.group_pool = GroupCosetMaxPool()
-
         self.linear = nn.Linear(shapes[-1]*block.expansion, num_classes)
-
         self.softmax = nn.Softmax(dim=1)
-
         
-
     def _make_layer(self, block, planes, num_blocks, conv, bn, stride):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
@@ -135,7 +144,7 @@ class ResNet(nn.Module):
             layers.append(block(self.in_planes, planes, conv=conv, bn=bn, stride=stride))
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
-
+    
     def forward(self, x):
         out = self.conv1(x)
         out = self.bn1(out)
@@ -144,7 +153,6 @@ class ResNet(nn.Module):
         s = out.shape
         out = out.view((s[0], -1, s[-2], s[-1]))
         out = F.avg_pool2d(out, out.shape[-1])
-        
         out = out.view(s[:-2]).unsqueeze(-1).unsqueeze(-1)
         out = self.group_pool(out)
         out = out.view(out.size(0), -1)

@@ -1,10 +1,11 @@
+from functools import partial
+
+import numpy as np
+from PIL import Image
 import torch
 import torchvision
 
 import utils.color_utils as utils
-
-import numpy as np
-from PIL import Image
 
 
 # Define a custom transform to scale all channels by a random factor
@@ -52,26 +53,25 @@ class HueSeparation:
 
     def __call__(self, img):
         img_hsv = img.convert("HSV")
-        x_transformed = [
-            torch.tensor(
-                np.array(
-                    utils.rotate_hue(img_hsv, (i * 256) // self.n_groups, rgb_out=self.rgb, rgb_in=False)
-                ),
-                dtype=torch.float32,
-            ).permute(2, 0, 1)
-            / 255
-            for i in range(self.n_groups)
-        ]
-
-        # x_transformed = [
-        #     utils.rotate_hue_matrix(img, np.pi * 2 * i / self.n_groups)
-        #     for i in range(self.n_groups)
-        # ]
-
-        x_stacked = torch.stack(
-            x_transformed, dim=0
-        )  # now (n_groups, 3, im_size, im_size)
-        return x_stacked
+        rotate = partial(
+            utils.rotate_hue,
+            img_hsv,
+            rgb_out=self.rgb,
+            rgb_in=False
+        )
+        x_transformed = []
+        for i in range(self.n_groups):
+            # hue rotation; hue range: [0, 255]
+            rot_amount = i * 256 // self.n_groups
+            x = rotate(rot_amount)
+            
+            # append tensor
+            x = torch.tensor(
+                np.array(x), dtype=torch.float32
+            ).permute(2, 0, 1) / 255
+            x_transformed.append(x)
+            
+        return torch.stack(x_transformed, dim=0) # (n_groups, 3, H, W)
 
 
 class HueLuminanceSeparation:
@@ -81,33 +81,40 @@ class HueLuminanceSeparation:
         self.rgb = rgb
         self.frac_space = frac_space
 
-    def __call__(self, img):
+    def __call__(self, img: Image.Image) -> torch.Tensor:
         img_hsv = img.convert("HSV")
-        x_transformed = [
-            torch.tensor(
-                np.array(
-                    utils.scale_saturation(
-                    utils.rotate_hue(img_hsv, ((i // self.n_groups_saturation) * 256) // self.n_groups, rgb_out=False, rgb_in=False),
-                    int((((i % self.n_groups_saturation) - self.n_groups_saturation // 2) / (self.n_groups_saturation // 2)) * 256 / 2 * self.frac_space), 
-                        self.rgb, 
-                        rgb_in=False
-                        )
-                ),
-                dtype=torch.float32,
-            ).permute(2, 0, 1)
-            / 255
-            for i in range(self.n_groups * self.n_groups_saturation)
-        ]
+        rotate = partial(
+            utils.rotate_hue,
+            img_hsv,
+            rgb_out=False,
+            rgb_in=False
+        )
+        shift = partial(
+            utils.scale_saturation,
+            rgb_out=self.rgb,
+            rgb_in=False
+        )
+        x_transformed = []
+        for i in range(self.n_groups * self.n_groups_saturation):
+            # hue rotation; hue range: [0, 255]
+            hue_idx = i // self.n_groups_saturation
+            rot_amount = hue_idx * 256 // self.n_groups
+            x = rotate(rot_amount)
+        
+            # stulation shift; satulation range: [-255, 255]
+            sat_idx = i % self.n_groups_saturation
+            mid_sat_group = self.n_groups_saturation // 2
+            scale_factor = 256 / 2 * self.frac_space
+            shift_amount = int(
+                (sat_idx - mid_sat_group) / mid_sat_group * scale_factor
+            )
+            x = shift(x, shift_amount)
 
-        # x_transformed = [xw
-        #     utils.rotate_hue_matrix(img, np.pi * 2 * i / self.n_groups)
-        #     for i in range(self.n_groups)
-        # ]
-
-        x_stacked = torch.stack(
-            x_transformed, dim=0
-        )  # now (n_groups, 3, im_size, im_size)
-        return x_stacked
+            # append tensor
+            x = torch.tensor(np.array(x), dtype=torch.float32).permute(2, 0, 1) / 255
+            x_transformed.append(x)
+            
+        return torch.stack(x_transformed, dim=0) # (n_groups * n_groups_saturation, 3, H, W)
 
 
 class TensorReshape:
