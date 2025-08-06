@@ -67,110 +67,6 @@ class Subnetwork(nn.Module):
         return outputs[self.top_layer]
 
 
-# ------------------------
-import torch
-import torch.nn as nn
-from torchinfo import summary
-import timm
-
-import sys
-sys.path.append('/home/chanseok-lim/Projects/lim_equivariance/lie-deriv')
-from lee.layerwise_lee import selective_apply
-from lee.transforms import img_like
-
-
-def print_module_tree(module: nn.Module, prefix: str = '', last: bool = True):
-    """ Recursively prints the module's children in a tree-like format."""
-    connector = '└── ' if last else '├── '
-    print(f'{prefix}{connector}{module._get_name()}')
-    prefix += '    ' if last else '│   '
-
-    children = list(module.named_children())
-    for i, (name, child) in enumerate(children):
-        last_child = (i == len(children) - 1)
-        print(f'{prefix}{"└── " if last_child else "├── "}{name}: {child._get_name()}')
-        print_module_tree(child, prefix, last_child)
-        
-
-def model_information(model, inp=None):
-    # print the model info
-    print("\nModel Summary:")
-    if inp is not None:
-        model_summary = summary(model,input_data=inp)
-    else:
-        model_summary = summary(model,input_size=(1, 3, 224, 224))
-    print(model_summary)
-    
-    # print the module tree
-    print("\nModule Tree:")
-    print_module_tree(model)
-
-
-def collect_module_outputs(model, input_data):
-    output_dict = {}
-
-    def hook(module, input, output):
-        module_name = module_name_mapping[id(module)]
-        output_dict[module_name] = {
-            'shape': output.shape,
-            'image-like': img_like(output.shape),
-        }
-
-    # register hooks
-    module_name_mapping = {id(module): name for name, module in model.named_modules()}
-    register_hook = lambda m: m.register_forward_hook(hook)
-    handles = selective_apply(model, register_hook)
-
-    # forward pass to call resistered hooks
-    model(input_data)
-
-    # remove hooks
-    for h in handles:
-        h.remove()
-
-    return output_dict
-
-
-def find_latest_imagelike_layer(output_dict):
-    former_module_name = None
-    former_output = {}
-    
-    for module_name, output in output_dict.items():
-        image_like = output['image-like']
-        former_image_like = former_output.get('image-like', False)
-    
-        if not image_like and former_image_like:
-            print('\nThe latest image-like module was found:')
-            print(f'former: {former_module_name}, shape: {former_output["shape"]}')
-            print(f'current: {module_name}, shape: {output["shape"]}')
-            break
-    
-        former_module_name = module_name
-        former_output = output
-
-
-def show_latest_imagelike_layer(args):
-    if 'model_name' in args:
-        MODEL_NAME = args['model_name']
-        model = timm.create_model(MODEL_NAME, pretrained=True)
-    elif 'model' in args:
-        model = args['model']
-    else:
-        raise KeyError(f'args must have a key either \'model_name\' or \'model\'')
-    model.to('cuda')
-    model.eval()
-
-    if 'input_data' in args:
-        input_data = args['input_data']
-    else:
-        input_data = torch.randn((1, 3, 224, 224)).to('cuda')
-    output_dict = collect_module_outputs(model, input_data)
-    find_latest_imagelike_layer(output_dict)
-
-    model_information(model, input_data)
-# ------------------------
-
-
 # load model
 FILE_PATH = "./model_manifest/cifar_h4s3_1999.json"
 LAYER_NAME = "layers.2.6.bn2"
@@ -184,7 +80,7 @@ subnet = Subnetwork(model, LAYER_NAME)
 
 # load images
 trainloader, valloader, testloader = get_cifar()
-for i, data in enumerate(testloader):
+for data in testloader:
     pass
 img, t = data
 for x in img:
@@ -203,16 +99,6 @@ lifting_layer = transforms.Compose([
     transforms.Normalize(MEAN["cifar"], STD["cifar"]),
     TensorReshape(),
 ])
-# ------------------------
-show_model_info = True
-if show_model_info:
-    input_data = Image.fromarray(np.random.randn(32,32,3).astype(np.uint8))
-    show_latest_imagelike_layer(
-        {'model': model,
-        'input_data': lifting_layer(input_data).unsqueeze(0).cuda()
-        }
-    )
-# ------------------------
 Y = []
 rotation = np.arange(params["n_groups_hue"]) * (360 / params["n_groups_hue"])
 hue_angle = lambda x: x*256/360
