@@ -49,6 +49,11 @@ class GroupConvHS(nn.Module):
         ))
         # Initialize the weights
         nn.init.kaiming_uniform_(self.conv_weight, a=math.sqrt(5))
+        # NOTICE:
+        # self.group_conv_weight does not work because it does not follow
+        # the update of conv_weight. However, we can not remove it, and also
+        # mask and sfs, to use previous model weights including them in its
+        # state_dict.
         self.construct_masks()
         self.register_buffer("group_conv_weight", self.construct_group_conv_weight())
 
